@@ -10,6 +10,7 @@ import time
 import re
 from urllib.parse import urljoin
 from typing import Optional
+from datetime import datetime
 from message import initialize_message_table, scrape_messages
 
 DB_PATH = "lstep_users.db"
@@ -58,6 +59,15 @@ def initialize_db():
             friend_value TEXT
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_update_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            line_name TEXT,
+            update_date TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    """)
     conn.commit()
     ensure_users_columns(conn)
     conn.close()
@@ -75,13 +85,35 @@ def save_to_db(name, href, friend_registered_at=None, support=None, display_name
     cursor = conn.cursor()
 
     existing_id = None
+    existing_values = None
     if href:
-        cursor.execute("SELECT id FROM users WHERE href = ? ORDER BY id ASC LIMIT 1", (href,))
+        cursor.execute(
+            """
+            SELECT id, line_name, friend_registered_at, support, display_name
+            FROM users
+            WHERE href = ?
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (href,),
+        )
         row = cursor.fetchone()
         if row:
             existing_id = row[0]
+            existing_values = {
+                "line_name": row[1],
+                "friend_registered_at": row[2],
+                "support": row[3],
+                "display_name": row[4],
+            }
 
     if existing_id:
+        has_change = (
+            existing_values["line_name"] != name
+            or existing_values["friend_registered_at"] != friend_registered_at
+            or existing_values["support"] != support
+            or existing_values["display_name"] != display_name
+        )
         cursor.execute(
             """
             UPDATE users
@@ -90,6 +122,15 @@ def save_to_db(name, href, friend_registered_at=None, support=None, display_name
             """,
             (name, href, friend_registered_at, support, display_name, existing_id)
         )
+        if has_change:
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute(
+                """
+                INSERT INTO user_update_history (user_id, line_name, update_date)
+                VALUES (?, ?, ?)
+                """,
+                (existing_id, name, now_str),
+            )
     else:
         cursor.execute(
             """
@@ -260,8 +301,7 @@ if __name__ == "__main__":
     driver.get("https://step.lme.jp/")
     input("ログインが完了したら Enter を押してください → ")
 
-    print("🟡 既存データをクリア中...")
-    clear_tables()
+    print("🟡 既存データはクリアせず、href基準で更新/新規追加します...")
 
     print("🟡 一覧を取得中...")
     scrape_user_list(driver)
