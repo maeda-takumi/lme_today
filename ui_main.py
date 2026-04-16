@@ -29,9 +29,32 @@ import threading
 from uploader import upload_db_ftps               # ← 既存のFTPSアップローダ
 import pprint
 from update_support_from_sheet import main as update_support_sync_main
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+
+LOGIN_PROFILE_DIR = os.path.join(os.getcwd(), ".chrome_profile", "lstep_login")
+
+
+def create_chrome_options(detach: bool = False) -> Options:
+    """ログインセッションを永続化する Chrome オプションを作成する。"""
+    os.makedirs(LOGIN_PROFILE_DIR, exist_ok=True)
+    options = Options()
+    options.add_argument(f"--user-data-dir={LOGIN_PROFILE_DIR}")
+    options.add_argument("--profile-directory=Default")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    if detach:
+        options.add_experimental_option("detach", True)
+    return options
+
+
+def create_chrome_options(detach: bool = False) -> Options:
+    """ログインセッションを永続化する Chrome オプションを作成する。"""
+    os.makedirs(LOGIN_PROFILE_DIR, exist_ok=True)
+    options = Options()
+    options.add_argument(f"--user-data-dir={LOGIN_PROFILE_DIR}")
+    options.add_argument("--profile-directory=Default")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    if detach:
+        options.add_experimental_option("detach", True)
+    return options
 
 def export_tables_to_csv(db_path: str = "lstep_users.db", out_dir: str = "exports") -> dict:
     """
@@ -104,7 +127,7 @@ def export_tables_to_csv(db_path: str = "lstep_users.db", out_dir: str = "export
 
 # ===================== モーダル：続行ゲート =====================
 class ContinueDialog(QDialog):
-    def __init__(self, title: str, instructions: str, parent=None):
+    def __init__(self, title: str, instructions: str, proceed_text: str = "続行", parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setMinimumSize(520, 360)
@@ -126,7 +149,7 @@ class ContinueDialog(QDialog):
         v.addWidget(inst)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        btns.button(QDialogButtonBox.Ok).setText("続行")
+        btns.button(QDialogButtonBox.Ok).setText(proceed_text)
         btns.button(QDialogButtonBox.Cancel).setText("キャンセル")
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
@@ -140,8 +163,8 @@ class UILogger(QObject):
     enable_ui = Signal(bool)
     show_info = Signal(str, str)
     show_error = Signal(str, str)
-    # (title, instructions, proceed_event, cancel_event)
-    open_gate = Signal(str, str, object, object)
+    # (title, instructions, proceed_event, cancel_event, proceed_text)
+    open_gate = Signal(str, str, object, object, str)
 
 # ===================== ユーティリティ =====================
 def clear_tables(include_messages: bool = True):
@@ -167,48 +190,11 @@ def run_scraping(logger: UILogger, target_date: str | None = None):
         # clear_tables()
 
         logger.message.emit("🟡 ブラウザを起動します…")
-        options = Options()
-        options.add_experimental_option("detach", True)
+        options = create_chrome_options()
         driver = webdriver.Chrome(options=options)
         driver.get("https://step.lme.jp/")
         driver.get("https://step.lme.jp/")
 
-        # ▼▼▼ ログインフォーム自動入力（ボタン押下なし） ▼▼▼
-        try:
-            logger.message.emit("🟡 ログインID・パスワードを自動入力しています…")
-
-            # ログインフォームの要素が出るまで待機
-            wait = WebDriverWait(driver, 20)
-
-            # id="email_login" の入力欄を取得
-            login_id = wait.until(
-                EC.presence_of_element_located((By.ID, "email_login"))
-            )
-
-            # id="password_login" の入力欄を取得
-            login_pw = wait.until(
-                EC.presence_of_element_located((By.ID, "password_login"))
-            )
-
-            # 値を入力（とりあえずダミー）
-            login_id.clear()
-            login_id.send_keys("miomama0605@gmail.com")
-
-            login_pw.clear()
-            login_pw.send_keys("20250606@Mio")
-            # 値を入力（とりあえずダミー）
-            # login_id.clear()
-            # login_id.send_keys("systemsoufu9@gmail.com")
-
-            # login_pw.clear()
-            # login_pw.send_keys("Kannai555@")
-            
-            logger.message.emit("🟡 ID・パスワードの入力が完了しました。ログイン操作は手動で行ってください。")
-
-        except Exception as e:
-            logger.message.emit(f"⚠️ ログイン自動入力に失敗: {e}")
-
-        # ▲▲▲ 自動入力ここまで ▲▲▲
 
         # ---- UIゲート（OKで続行 / キャンセルで中断）----
         proceed_event = threading.Event()
@@ -219,7 +205,7 @@ def run_scraping(logger: UILogger, target_date: str | None = None):
             "3) 画面が開けたら、このポップアップの［続行］を押してください。\n\n"
             "※［キャンセル］を押すと処理を中断します。"
         )
-        logger.open_gate.emit("ログイン＆移動のお願い", instructions, proceed_event, cancel_event)
+        logger.open_gate.emit("ログイン＆移動のお願い", instructions, proceed_event, cancel_event, "続行")
 
         # どちらかが押されるまで待つ（ポーリングで両方監視）
         while True:
@@ -269,42 +255,10 @@ def run_tag_scraping(logger: UILogger):
         # clear_tables(include_messages=False)
 
         logger.message.emit("🟡 ブラウザを起動します…")
-        options = Options()
-        options.add_experimental_option("detach", True)
+        options = create_chrome_options()
         driver = webdriver.Chrome(options=options)
         driver.get("https://step.lme.jp/")
         driver.get("https://step.lme.jp/")
-
-        # ▼▼▼ ログインフォーム自動入力（ボタン押下なし） ▼▼▼
-        try:
-            logger.message.emit("🟡 ログインID・パスワードを自動入力しています…")
-
-            # ログインフォームの要素が出るまで待機
-            wait = WebDriverWait(driver, 20)
-
-            # id="email_login" の入力欄を取得
-            login_id = wait.until(
-                EC.presence_of_element_located((By.ID, "email_login"))
-            )
-
-            # id="password_login" の入力欄を取得
-            login_pw = wait.until(
-                EC.presence_of_element_located((By.ID, "password_login"))
-            )
-
-            # 値を入力（とりあえずダミー）
-            login_id.clear()
-            login_id.send_keys("miomama0605@gmail.com")
-
-            login_pw.clear()
-            login_pw.send_keys("20250606@Mio")
-
-            logger.message.emit("🟡 ID・パスワードの入力が完了しました。ログイン操作は手動で行ってください。")
-
-        except Exception as e:
-            logger.message.emit(f"⚠️ ログイン自動入力に失敗: {e}")
-
-        # ▲▲▲ 自動入力ここまで ▲▲▲
 
         # ---- UIゲート（OKで続行 / キャンセルで中断）----
         proceed_event = threading.Event()
@@ -315,8 +269,7 @@ def run_tag_scraping(logger: UILogger):
             "3) 画面が開けたら、このポップアップの［続行］を押してください。\n\n"
             "※［キャンセル］を押すと処理を中断します。"
         )
-        logger.open_gate.emit("ログイン＆移動のお願い", instructions, proceed_event, cancel_event)
-
+        logger.open_gate.emit("ログイン＆移動のお願い", instructions, proceed_event, cancel_event, "続行")
         # どちらかが押されるまで待つ（ポーリングで両方監視）
         while True:
             if proceed_event.wait(timeout=0.1):
@@ -343,6 +296,52 @@ def run_tag_scraping(logger: UILogger):
             pass
         logger.enable_ui.emit(True)
 
+def run_login_session_save(logger: UILogger):
+    """手動ログイン後にセッションを保存する専用フロー。"""
+    driver = None
+    try:
+        logger.enable_ui.emit(False)
+        logger.message.emit("🟡 ログイン保存モードを開始します…")
+        logger.message.emit(f"🟡 保存先プロファイル: {LOGIN_PROFILE_DIR}")
+
+        options = create_chrome_options()
+        driver = webdriver.Chrome(options=options)
+        driver.get("https://step.lme.jp/")
+
+        proceed_event = threading.Event()
+        cancel_event = threading.Event()
+        instructions = (
+            "1) 開いたブラウザで手動ログインしてください。\n"
+            "2) ログイン完了を確認してください。\n"
+            "3) このポップアップで［ログイン情報を保存して終了］を押してください。\n\n"
+            "※［キャンセル］を押すと保存せず終了します。"
+        )
+        logger.open_gate.emit(
+            "ログイン情報保存",
+            instructions,
+            proceed_event,
+            cancel_event,
+            "ログイン情報を保存して終了",
+        )
+
+        while True:
+            if proceed_event.wait(timeout=0.1):
+                break
+            if cancel_event.is_set():
+                logger.message.emit("🛑 ログイン保存をキャンセルしました。")
+                return
+
+        logger.message.emit("✅ ログイン情報を保存しました。")
+    except Exception as e:
+        logger.message.emit(f"❌ ログイン保存中にエラー: {e}")
+        logger.show_error.emit("ログイン保存エラー", f"{e}")
+    finally:
+        try:
+            if driver:
+                driver.quit()
+        except Exception:
+            pass
+        logger.enable_ui.emit(True)
 # ===================== メインウィンドウ =====================
 class MainWindow(QWidget):
     def __init__(self):
@@ -392,6 +391,10 @@ class MainWindow(QWidget):
         self.btn_tag_scrape.clicked.connect(self.on_click_tag_scrape)
         row1.addWidget(self.btn_tag_scrape)
         
+        self.btn_login_save = QPushButton("ログイン保存実行")
+        self.btn_login_save.clicked.connect(self.on_click_login_save)
+        row1.addWidget(self.btn_login_save)
+
         row2 = QHBoxLayout()
         self.btn_upload = QPushButton("サーバーアップロード実行")
         self.btn_upload.clicked.connect(self.on_click_upload)
@@ -459,6 +462,7 @@ class MainWindow(QWidget):
         self.btn_scrape.setEnabled(enabled)
         self.btn_tag_scrape.setEnabled(enabled)
         self.btn_upload.setEnabled(enabled)
+        self.btn_login_save.setEnabled(enabled)
         # self.btn_analysis.setEnabled(enabled)
         self.btn_export.setEnabled(enabled)   # ← 追加
 
@@ -491,6 +495,10 @@ class MainWindow(QWidget):
     def on_show_error(self, title, text):
         QMessageBox.critical(self, title, text)
 
+    @Slot(str, str, object, object, str)
+    def on_open_gate(self, title: str, instructions: str, proceed_event: object, cancel_event: object, proceed_text: str):
+        dlg = ContinueDialog(title, instructions, proceed_text, self)
+
     @Slot(str, str, object, object)
     def on_open_gate(self, title: str, instructions: str, proceed_event: object, cancel_event: object):
         dlg = ContinueDialog(title, instructions, self)
@@ -516,6 +524,10 @@ class MainWindow(QWidget):
         
     def on_click_upload(self):
         t = threading.Thread(target=self.run_upload, daemon=True)
+        t.start()
+
+    def on_click_login_save(self):
+        t = threading.Thread(target=run_login_session_save, args=(self.logger,), daemon=True)
         t.start()
 
 def main():

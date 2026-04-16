@@ -106,6 +106,84 @@ def scroll_chat_to_top(driver, max_loops=1000, stable_rounds=3, sleep_per_loop=0
     # 最後に短く待ってDOM安定
     time.sleep(0.3)
 
+def _extract_oldest_date_from_headers(driver):
+    """
+    画面上に描画済みの .time-center（日付ヘッダ）を走査し、
+    最古日付（YYYY-MM-DD）を返す。見つからなければ None。
+    """
+    try:
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        headers = soup.select("#messages-container-v2 .time-center")
+        dates = []
+        for h in headers:
+            raw = h.get_text(strip=True)
+            m = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", raw)
+            if not m:
+                continue
+            y = int(m.group(1))
+            mo = int(m.group(2))
+            d = int(m.group(3))
+            dates.append(f"{y:04d}-{mo:02d}-{d:02d}")
+        return min(dates) if dates else None
+    except Exception:
+        return None
+
+def scroll_chat_until_target_date(driver, target_date: str, max_loops=1000, stable_rounds=3, sleep_per_loop=0.5):
+    """
+    target_date 指定時用:
+    - スクロールしつつ描画済み最古日付を監視
+    - 最古日付が target_date より過去（<）になったら打ち切る
+    - それ以外は従来通り、要素数が増えなくなったら終了
+    """
+    container = _find_chat_scroll_container(driver)
+    get_count_js = "return document.querySelectorAll('#messages-container-v2 > div').length;"
+
+    def _get_count():
+        try:
+            return driver.execute_script(get_count_js)
+        except Exception:
+            try:
+                return len(driver.find_elements(By.CSS_SELECTOR, "#messages-container-v2 > div"))
+            except Exception:
+                return -1
+
+    _wait_messages_drawn(driver)
+
+    same_count_streak = 0
+    last_count = _get_count()
+
+    for _ in range(max_loops):
+        oldest_date = _extract_oldest_date_from_headers(driver)
+        if oldest_date and oldest_date < target_date:
+            break
+
+        try:
+            if container:
+                driver.execute_script("arguments[0].scrollTop = 0;", container)
+            else:
+                driver.execute_script("window.scrollTo(0, 0);")
+            driver.execute_script("window.dispatchEvent(new Event('scroll'));")
+        except StaleElementReferenceException:
+            container = _find_chat_scroll_container(driver)
+
+        time.sleep(sleep_per_loop)
+
+        count = _get_count()
+        if count <= 0:
+            time.sleep(0.3)
+            continue
+
+        if count == last_count:
+            same_count_streak += 1
+        else:
+            same_count_streak = 0
+            last_count = count
+
+        if same_count_streak >= stable_rounds:
+            break
+
+    time.sleep(0.3)
+
 # メッセージテーブル作成
 def initialize_message_table():
     conn = sqlite3.connect("lstep_users.db")
@@ -473,8 +551,12 @@ def scrape_messages(driver, logger, base_url="https://step.lme.jp", target_date:
         except:
             pass
 
-        # 全メッセージ読み込み
-        scroll_chat_to_top(driver)
+        # メッセージ読み込み
+        if target_date:
+            scroll_chat_until_target_date(driver, target_date=target_date)
+        else:
+            scroll_chat_to_top(driver)
+            
         soup = BeautifulSoup(driver.page_source, "html.parser")
         message_blocks = soup.select("#messages-container-v2 > div")
         # print(f"🧩 message_blocks count = {len(message_blocks)}")
@@ -525,7 +607,7 @@ def scrape_messages(driver, logger, base_url="https://step.lme.jp", target_date:
 
             if target_date and not time_sent.startswith(f"{target_date} "):
                 continue
-            
+
             # =========================
             # ✅ 送信者名取得
             # =========================
