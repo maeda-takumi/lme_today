@@ -208,19 +208,23 @@ def scrape_current_page(driver):
         href = name_tag.get("href", "")
         name = name_tag.get_text(strip=True)
 
-        # ★ ここで詳細ページへ取りに行く（時刻込み）
         friend_registered_at = None
+
+        # 一覧の固定列から display_name を取得
+        # 例画像ベース: 5列目(td index=4) が display_name
+        tds = row.select("td")
         display_name = None
-        # if href:
-        #     detail = fetch_user_detail_info(driver, href)
-        #     friend_registered_at = detail.get("friend_registered_at")
-        #     display_name = detail.get("display_name")
-            
+        if len(tds) >= 5:
+            raw_display_name = tds[4].get_text(strip=True)
+            if raw_display_name == "":
+                display_name = None
+            else:
+                # "-" はそのまま保存
+                display_name = raw_display_name
+
         print(f"{name}: {href} / friend_registered_at={friend_registered_at} / display_name={display_name}")
         save_to_db(name, href, friend_registered_at=friend_registered_at, display_name=display_name)
 
-
-        # 開きまくるので軽く間隔（必要なら調整）
         time.sleep(0.2)
 
 def has_next_page(driver):
