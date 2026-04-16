@@ -27,7 +27,6 @@ from tags import scrape_tags
 from style import app_stylesheet, apply_card_shadow
 import threading
 from uploader import upload_db_ftps               # ← 既存のFTPSアップローダ
-from ui_analysis import AnalysisWindow            # ← 別ウィンドウ
 import pprint
 from update_support_from_sheet import main as update_support_sync_main
 from selenium.webdriver.common.by import By
@@ -231,7 +230,7 @@ def run_scraping(logger: UILogger, target_date: str | None = None):
                 return  # finally へ
 
         logger.message.emit("🟡 一覧を取得中…")
-        # scrape_user_list(driver)
+        scrape_user_list(driver)
 
         if target_date:
             logger.message.emit(f"🟡 メッセージ取得を開始します（対象日: {target_date}）…")
@@ -327,7 +326,7 @@ def run_tag_scraping(logger: UILogger):
                 return  # finally へ
 
         logger.message.emit("🟡 一覧を取得中…")
-        # scrape_user_list(driver)
+        scrape_user_list(driver)
 
         logger.message.emit("🟡 タグ取得を開始します…")
         scrape_tags(driver, logger)
@@ -400,7 +399,7 @@ class MainWindow(QWidget):
 
         row3 = QHBoxLayout()
         self.btn_analysis = QPushButton("分析（別UI起動）")
-        self.btn_analysis.clicked.connect(self.on_click_analysis)
+        # self.btn_analysis.clicked.connect(self.on_click_analysis)
         # row3.addWidget(self.btn_analysis)
 
         # ▼ 追加：CSVエクスポートボタン
@@ -519,13 +518,6 @@ class MainWindow(QWidget):
         t = threading.Thread(target=self.run_upload, daemon=True)
         t.start()
 
-    def on_click_analysis(self):
-        if self.analysis_window is None:
-            self.analysis_window = AnalysisWindow()
-            self.analysis_window.setStyleSheet(app_stylesheet())
-        self.analysis_window.show()
-        self.analysis_window.raise_()
-        self.analysis_window.activateWindow()
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("SUP-ADMIN")
