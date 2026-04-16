@@ -8,9 +8,10 @@ from datetime import datetime
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QPlainTextEdit, QMessageBox, QDialog, QDialogButtonBox, QTextEdit
+    QFrame, QPlainTextEdit, QMessageBox, QDialog, QDialogButtonBox, QTextEdit,
+    QDateEdit
 )
-from PySide6.QtCore import Qt, Signal, QObject, Slot
+from PySide6.QtCore import Qt, Signal, QObject, Slot, QDate
 
 # Selenium
 from selenium import webdriver
@@ -155,7 +156,7 @@ def clear_tables(include_messages: bool = True):
     conn.close()
 
 # ===================== スクレイピング処理（別スレッド） =====================
-def run_scraping(logger: UILogger):
+def run_scraping(logger: UILogger, target_date: str | None = None):
     driver = None
     try:
         logger.enable_ui.emit(False)
@@ -232,8 +233,12 @@ def run_scraping(logger: UILogger):
         logger.message.emit("🟡 一覧を取得中…")
         # scrape_user_list(driver)
 
-        logger.message.emit("🟡 メッセージ取得を開始します…")
-        scrape_messages(driver, logger)
+        if target_date:
+            logger.message.emit(f"🟡 メッセージ取得を開始します（対象日: {target_date}）…")
+        else:
+            logger.message.emit("🟡 メッセージ取得を開始します（全期間）…")
+        scrape_messages(driver, logger, target_date=target_date)
+
         logger.message.emit("🟢 スクレイピング完了。サポート担当の同期を開始します…")
         try:
             # スプレッドシート → users.support を更新（B列=LINE名、F列=担当者）
@@ -374,6 +379,16 @@ class MainWindow(QWidget):
         self.btn_scrape.clicked.connect(self.on_click_scrape)
         row1.addWidget(self.btn_scrape)
 
+        self.date_input = QDateEdit()
+        self.date_input.setDisplayFormat("yyyy-MM-dd")
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setSpecialValueText("未指定（全期間）")
+        self.date_input.setMinimumDate(QDate(2000, 1, 1))
+        self.date_input.setDate(self.date_input.minimumDate())
+        self.date_input.setToolTip("対象日を指定すると、その日のメッセージのみ取得します。未指定なら全期間を取得します。")
+        row1.addWidget(QLabel("対象日"))
+        row1.addWidget(self.date_input)
+
         self.btn_tag_scrape = QPushButton("タグ取得実行")
         self.btn_tag_scrape.clicked.connect(self.on_click_tag_scrape)
         row1.addWidget(self.btn_tag_scrape)
@@ -490,7 +505,10 @@ class MainWindow(QWidget):
 
     # ---------- Actions ----------
     def on_click_scrape(self):
-        t = threading.Thread(target=run_scraping, args=(self.logger,), daemon=True)
+        selected_date = None
+        if self.date_input.date() != self.date_input.minimumDate():
+            selected_date = self.date_input.date().toString("yyyy-MM-dd")
+        t = threading.Thread(target=run_scraping, args=(self.logger, selected_date), daemon=True)
         t.start()
 
     def on_click_tag_scrape(self):

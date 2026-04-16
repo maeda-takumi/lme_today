@@ -365,7 +365,7 @@ def normalize_time_sent(current_date: str, time_sent_raw: str):
     return None
 
 # 各ユーザーのチャット履歴を取得
-def scrape_messages(driver, logger, base_url="https://step.lme.jp"):
+def scrape_messages(driver, logger, base_url="https://step.lme.jp", target_date: str | None = None):
 
 
     # 再開ポイント読込
@@ -384,6 +384,10 @@ def scrape_messages(driver, logger, base_url="https://step.lme.jp"):
     conn.close()
 
 
+    if target_date:
+        logger.message.emit(f"📅 対象日のみ取得します: {target_date} (JST)")
+    else:
+        logger.message.emit("📅 対象日指定なし: 全期間を取得します")
     for user_id, href in users:
         if user_id < resume_from:
             continue
@@ -519,6 +523,9 @@ def scrape_messages(driver, logger, base_url="https://step.lme.jp"):
                 print(f"⚠ time_sent parse failed: raw={repr(time_sent_raw)} current_date={current_date}")
                 continue
 
+            if target_date and not time_sent.startswith(f"{target_date} "):
+                continue
+            
             # =========================
             # ✅ 送信者名取得
             # =========================
