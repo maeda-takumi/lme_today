@@ -9,9 +9,10 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QPlainTextEdit, QMessageBox, QDialog, QDialogButtonBox, QTextEdit,
-    QDateEdit
+    
+    QDateEdit, QTimeEdit, QGroupBox, QGridLayout
 )
-from PySide6.QtCore import Qt, Signal, QObject, Slot, QDate
+from PySide6.QtCore import Qt, Signal, QObject, Slot, QDate, QTime
 
 # Selenium
 from selenium import webdriver
@@ -233,6 +234,34 @@ def run_scraping(logger: UILogger, target_date: str | None = None):
             pass
         logger.enable_ui.emit(True)
 
+def run_polling(logger: UILogger, execute_time: QTime, stop_event: threading.Event):
+    """指定時刻になったら当日分スクレイピングを毎日実行する。"""
+    last_executed_date = None
+    execute_time_text = execute_time.toString("HH:mm")
+    logger.message.emit(f"🟢 ポーリング開始: 毎日 {execute_time_text} に当日分を取得します。")
+
+    while not stop_event.is_set():
+        now = datetime.now()
+        today = now.date()
+        current_time = QTime(now.hour, now.minute, now.second)
+
+        should_run = (
+            current_time >= execute_time
+            and last_executed_date != today
+        )
+        if should_run:
+            target_date = today.strftime("%Y-%m-%d")
+            logger.message.emit(
+                f"🟡 ポーリング実行時刻に到達: 当日({target_date})のデータ取得を開始します。"
+            )
+            run_scraping(logger, target_date=target_date)
+            last_executed_date = today
+            logger.message.emit("🟢 ポーリング待機に戻ります。")
+
+        stop_event.wait(timeout=15)
+
+    logger.message.emit("🛑 ポーリングを停止しました。")
+
 def run_tag_scraping(logger: UILogger):
     driver = None
     try:
@@ -345,25 +374,35 @@ class MainWindow(QWidget):
         self.logger.show_info.connect(self.on_show_info)
         self.logger.show_error.connect(self.on_show_error)
         self.logger.open_gate.connect(self.on_open_gate)
+        self.polling_stop_event = None
+        self.polling_thread = None
+        self.polling_active = False
         self._build()
 
     def _build(self):
         root = QVBoxLayout(self)
+        root.setSpacing(14)
 
         # タイトル
         title = QLabel("LSTEP ユーティリティ")
         title.setObjectName("TitleLabel")
         root.addWidget(title)
 
+        sub_title = QLabel("スクレイピング・アップロード・エクスポートを用途別にまとめました。")
+        sub_title.setObjectName("SubTitleLabel")
+        root.addWidget(sub_title)
+
         # カード：操作ボタン
         actions_card = QFrame()
         actions_card.setObjectName("Card")
         actions = QVBoxLayout(actions_card)
-
-        row1 = QHBoxLayout()
+        actions.setSpacing(14)
+        
+        run_group = QGroupBox("データ取得")
+        run_grid = QGridLayout(run_group)
         self.btn_scrape = QPushButton("スクレイピング実行")
         self.btn_scrape.clicked.connect(self.on_click_scrape)
-        row1.addWidget(self.btn_scrape)
+        run_grid.addWidget(self.btn_scrape, 0, 0, 1, 2)
 
         self.date_input = QDateEdit()
         self.date_input.setDisplayFormat("yyyy-MM-dd")
@@ -372,23 +411,47 @@ class MainWindow(QWidget):
         self.date_input.setMinimumDate(QDate(2000, 1, 1))
         self.date_input.setDate(self.date_input.minimumDate())
         self.date_input.setToolTip("対象日を指定すると、その日のメッセージのみ取得します。未指定なら全期間を取得します。")
-        row1.addWidget(QLabel("対象日"))
-        row1.addWidget(self.date_input)
+        run_grid.addWidget(QLabel("対象日"), 1, 0)
+        run_grid.addWidget(self.date_input, 1, 1)
 
         self.btn_tag_scrape = QPushButton("タグ取得実行")
         self.btn_tag_scrape.clicked.connect(self.on_click_tag_scrape)
-        row1.addWidget(self.btn_tag_scrape)
+        run_grid.addWidget(self.btn_tag_scrape, 2, 0, 1, 2)
         
         self.btn_login_save = QPushButton("ログイン保存実行")
         self.btn_login_save.clicked.connect(self.on_click_login_save)
-        row1.addWidget(self.btn_login_save)
+        run_grid.addWidget(self.btn_login_save, 3, 0, 1, 2)
 
-        row2 = QHBoxLayout()
+        polling_group = QGroupBox("ポーリング")
+        polling_grid = QGridLayout(polling_group)
+        polling_grid.addWidget(QLabel("実行時刻"), 0, 0)
+        self.polling_time_input = QTimeEdit()
+        self.polling_time_input.setDisplayFormat("HH:mm")
+        self.polling_time_input.setTime(QTime.currentTime())
+        self.polling_time_input.setToolTip("毎日この時刻に当日分のスクレイピングを実行します。")
+        polling_grid.addWidget(self.polling_time_input, 0, 1)
+
+        self.btn_polling_start = QPushButton("ポーリング開始")
+        self.btn_polling_start.clicked.connect(self.on_click_polling_start)
+        polling_grid.addWidget(self.btn_polling_start, 1, 0)
+        self.btn_polling_stop = QPushButton("ポーリング停止")
+        self.btn_polling_stop.setObjectName("SecondaryButton")
+        self.btn_polling_stop.clicked.connect(self.on_click_polling_stop)
+        self.btn_polling_stop.setEnabled(False)
+        polling_grid.addWidget(self.btn_polling_stop, 1, 1)
+
+        self.polling_status_label = QLabel("停止中")
+        self.polling_status_label.setObjectName("StatusIdle")
+        polling_grid.addWidget(self.polling_status_label, 2, 0, 1, 2)
+
+        maintenance_group = QGroupBox("メンテナンス")
+        maintenance_row = QHBoxLayout(maintenance_group)
         self.btn_upload = QPushButton("サーバーアップロード実行")
         self.btn_upload.clicked.connect(self.on_click_upload)
-        row2.addWidget(self.btn_upload)
+        maintenance_row.addWidget(self.btn_upload)
 
-        row3 = QHBoxLayout()
+        export_group = QGroupBox("出力")
+        export_row = QHBoxLayout(export_group)
         self.btn_analysis = QPushButton("分析（別UI起動）")
         # self.btn_analysis.clicked.connect(self.on_click_analysis)
         # row3.addWidget(self.btn_analysis)
@@ -396,11 +459,12 @@ class MainWindow(QWidget):
         # ▼ 追加：CSVエクスポートボタン
         self.btn_export = QPushButton("CSVエクスポート（users / messages）")
         self.btn_export.clicked.connect(self.on_click_export)
-        row3.addWidget(self.btn_export)
+        export_row.addWidget(self.btn_export)
 
-        actions.addLayout(row1)
-        actions.addLayout(row2)
-        actions.addLayout(row3)
+        actions.addWidget(run_group)
+        actions.addWidget(polling_group)
+        actions.addWidget(maintenance_group)
+        actions.addWidget(export_group)
         root.addWidget(actions_card)
         apply_card_shadow(actions_card)  # ← カードに影
 
@@ -453,6 +517,10 @@ class MainWindow(QWidget):
         self.btn_login_save.setEnabled(enabled)
         # self.btn_analysis.setEnabled(enabled)
         self.btn_export.setEnabled(enabled)   # ← 追加
+        self.date_input.setEnabled(enabled)
+        self.polling_time_input.setEnabled(enabled and not self.polling_active)
+        self.btn_polling_start.setEnabled(enabled and not self.polling_active)
+        self.btn_polling_stop.setEnabled(self.polling_active)
 
     def append_log(self, text: str):
         self.log.appendPlainText(text)
@@ -511,6 +579,37 @@ class MainWindow(QWidget):
         t = threading.Thread(target=run_scraping, args=(self.logger, selected_date), daemon=True)
         t.start()
 
+    def on_click_polling_start(self):
+        if self.polling_active:
+            self.logger.message.emit("ℹ️ すでにポーリング実行中です。")
+            return
+
+        self.polling_stop_event = threading.Event()
+        execute_time = self.polling_time_input.time()
+        self.polling_thread = threading.Thread(
+            target=run_polling,
+            args=(self.logger, execute_time, self.polling_stop_event),
+            daemon=True,
+        )
+        self.polling_active = True
+        self.polling_status_label.setText(f"稼働中（毎日 {execute_time.toString('HH:mm')} 実行）")
+        self.polling_status_label.setObjectName("StatusRunning")
+        self.polling_status_label.style().unpolish(self.polling_status_label)
+        self.polling_status_label.style().polish(self.polling_status_label)
+        self.set_controls_enabled(True)
+        self.polling_thread.start()
+
+    def on_click_polling_stop(self):
+        if not self.polling_active:
+            return
+        self.polling_stop_event.set()
+        self.polling_active = False
+        self.polling_status_label.setText("停止中")
+        self.polling_status_label.setObjectName("StatusIdle")
+        self.polling_status_label.style().unpolish(self.polling_status_label)
+        self.polling_status_label.style().polish(self.polling_status_label)
+        self.set_controls_enabled(True)
+        
     def on_click_tag_scrape(self):
         t = threading.Thread(target=run_tag_scraping, args=(self.logger,), daemon=True)
         t.start()

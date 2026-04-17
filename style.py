@@ -62,6 +62,23 @@ QDateEdit, QTimeEdit, QTextEdit, QPlainTextEdit {{
     padding: 8px;
 }}
 
+QLabel#StatusRunning {{
+    color: #11612B;
+    background: #EAF9EF;
+    border: 1px solid #B5E2C1;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-weight: 600;
+}}
+
+QLabel#StatusIdle {{
+    color: #5A6478;
+    background: #F3F5F9;
+    border: 1px solid #D5DCE8;
+    border-radius: 8px;
+    padding: 6px 10px;
+}}
+
 /* すべてのボタンを面色ブルー（プライマリ）に統一 */
 QPushButton {{
     background: {ACCENT_BLUE};
@@ -78,6 +95,12 @@ QPushButton:disabled {{
     background: #9BB8FF;
 }}
 
+QPushButton#SecondaryButton {{
+    background: #6B7280;
+}}
+QPushButton#SecondaryButton:hover {{
+    background: #4B5563;
+}}
 /* ログ表示：背景白＋見やすい文字色 */
 QPlainTextEdit#LogView {{
     background: {PRIMARY_WHITE};
