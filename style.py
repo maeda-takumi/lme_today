@@ -85,8 +85,8 @@ QPushButton {{
     color: #FFFFFF;
     border: 1px solid {ACCENT_BLUE_DARK};
     border-radius: 10px;
-    padding: 10px 14px;
-    min-height: 18px;
+    padding: 6px 14px;
+    min-height: 34px;
     font-weight: 600;
 }}
 QPushButton:hover {{

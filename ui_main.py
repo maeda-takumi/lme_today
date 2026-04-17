@@ -397,9 +397,11 @@ class MainWindow(QWidget):
         actions_card.setObjectName("Card")
         actions = QVBoxLayout(actions_card)
         actions.setSpacing(14)
-        
         run_group = QGroupBox("データ取得")
+        run_group.setFixedHeight(220)   # ← カード枠の縦幅を固定
+
         run_grid = QGridLayout(run_group)
+
         self.btn_scrape = QPushButton("スクレイピング実行")
         self.btn_scrape.clicked.connect(self.on_click_scrape)
         run_grid.addWidget(self.btn_scrape, 0, 0, 1, 2)
@@ -417,7 +419,7 @@ class MainWindow(QWidget):
         self.btn_tag_scrape = QPushButton("タグ取得実行")
         self.btn_tag_scrape.clicked.connect(self.on_click_tag_scrape)
         run_grid.addWidget(self.btn_tag_scrape, 2, 0, 1, 2)
-        
+
         self.btn_login_save = QPushButton("ログイン保存実行")
         self.btn_login_save.clicked.connect(self.on_click_login_save)
         run_grid.addWidget(self.btn_login_save, 3, 0, 1, 2)
