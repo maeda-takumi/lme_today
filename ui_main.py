@@ -4,7 +4,7 @@ import sqlite3
 import threading
 import csv, os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -217,29 +217,31 @@ def run_scraping(logger: UILogger, target_date: str | None = None):
 
 def run_polling(logger: UILogger, execute_time: QTime, stop_event: threading.Event):
     """指定時刻になったら当日分スクレイピングを毎日実行する。"""
-    last_executed_date = None
-    execute_time_text = execute_time.toString("HH:mm")
+    execute_hour = execute_time.hour()
+    execute_minute = execute_time.minute()
+    execute_time_text = f"{execute_hour:02d}:{execute_minute:02d}"
     logger.message.emit(f"🟢 ポーリング開始: 毎日 {execute_time_text} に当日分を取得します。")
+
+    now = datetime.now()
+    next_run_at = now.replace(hour=execute_hour, minute=execute_minute, second=0, microsecond=0)
+    if next_run_at <= now:
+        next_run_at += timedelta(days=1)
+    logger.message.emit(f"🕒 次回実行予定: {next_run_at.strftime('%Y-%m-%d %H:%M:%S')}")
 
     while not stop_event.is_set():
         now = datetime.now()
-        today = now.date()
-        current_time = QTime(now.hour, now.minute, now.second)
+        if now >= next_run_at:
+            target_date = now.date().strftime("%Y-%m-%d")
 
-        should_run = (
-            current_time >= execute_time
-            and last_executed_date != today
-        )
-        if should_run:
-            target_date = today.strftime("%Y-%m-%d")
             logger.message.emit(
                 f"🟡 ポーリング実行時刻に到達: 当日({target_date})のデータ取得を開始します。"
             )
             run_scraping(logger, target_date=target_date)
-            last_executed_date = today
+            next_run_at += timedelta(days=1)
+            logger.message.emit(f"🕒 次回実行予定: {next_run_at.strftime('%Y-%m-%d %H:%M:%S')}")
             logger.message.emit("🟢 ポーリング待機に戻ります。")
 
-        stop_event.wait(timeout=15)
+        stop_event.wait(timeout=1)
 
     logger.message.emit("🛑 ポーリングを停止しました。")
 
@@ -416,7 +418,8 @@ class MainWindow(QWidget):
         polling_grid.addWidget(QLabel("実行時刻"), 0, 0)
         self.polling_time_input = QTimeEdit()
         self.polling_time_input.setDisplayFormat("HH:mm")
-        self.polling_time_input.setTime(QTime.currentTime())
+        now_time = QTime.currentTime()
+        self.polling_time_input.setTime(now_time.addSecs(-now_time.second()))
         self.polling_time_input.setToolTip("毎日この時刻に当日分のスクレイピングを実行します。")
         polling_grid.addWidget(self.polling_time_input, 0, 1)
 
