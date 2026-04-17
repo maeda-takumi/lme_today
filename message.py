@@ -444,7 +444,7 @@ def normalize_time_sent(current_date: str, time_sent_raw: str):
 
 def normalize_new_message_date(raw: str | None) -> str | None:
     """
-    users.new_message_date（一覧2列目の表示値）を YYYY-MM-DD に寄せる。
+    users.new_message_date（一覧3列目の表示値）を YYYY-MM-DD に寄せる。
     """
     if not raw:
         return None
@@ -501,7 +501,7 @@ def scrape_messages(driver, logger, base_url="https://step.lme.jp", target_date:
             normalized_new_message_date = normalize_new_message_date(new_message_date)
             if normalized_new_message_date != target_date:
                 continue
-            
+
         print(f"🟡 ユーザーID {user_id} のチャットを取得中…")
 
         # ================================

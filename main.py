@@ -16,6 +16,35 @@ from message import initialize_message_table, scrape_messages
 DB_PATH = "lstep_users.db"
 BASE_URL = "https://step.lme.jp/"  # href が相対パスでも OK にする
 DT_RE = re.compile(r"(\d{4}[./-]\d{2}[./-]\d{2})\s+(\d{2}:\d{2})(?::\d{2})?")
+
+
+def normalize_new_message_date(raw: Optional[str]) -> Optional[str]:
+    """
+    一覧の新規メッセージ日付を YYYY-MM-DD に正規化する。
+    """
+    if raw is None:
+        return None
+
+    text = raw.strip()
+    if not text:
+        return None
+
+    m = re.search(r"(\d{4})[./-](\d{1,2})[./-](\d{1,2})", text)
+    if m:
+        y = int(m.group(1))
+        mo = int(m.group(2))
+        d = int(m.group(3))
+        return f"{y:04d}-{mo:02d}-{d:02d}"
+
+    m = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", text)
+    if m:
+        y = int(m.group(1))
+        mo = int(m.group(2))
+        d = int(m.group(3))
+        return f"{y:04d}-{mo:02d}-{d:02d}"
+
+    return None
+
 # -------------------------
 # DB初期化（新規作成 + 既存DBのカラム追加にも対応）
 # -------------------------
@@ -45,7 +74,7 @@ def ensure_users_columns(conn):
         conn.commit()
 
     if "new_message_date" not in cols:
-        cur.execute("ALTER TABLE users ADD COLUMN new_message_date TEXT")
+        cur.execute("ALTER TABLE users ADD COLUMN new_message_date DATE")
         conn.commit()
 
 def initialize_db():
@@ -61,7 +90,7 @@ def initialize_db():
             tags TEXT,
             display_name TEXT,
             friend_value TEXT,
-            new_message_date TEXT
+            new_message_date DATE
         )
     """)
     cursor.execute("""
@@ -269,10 +298,10 @@ def scrape_current_page(driver):
         # 例画像ベース: 5列目(td index=4) が display_name
         tds = row.select("td")
         new_message_date = None
-        if len(tds) >= 2:
-            raw_new_message_date = tds[1].get_text(strip=True)
+        if len(tds) >= 3:
+            raw_new_message_date = tds[2].get_text(strip=True)
             if raw_new_message_date:
-                new_message_date = raw_new_message_date
+                new_message_date = normalize_new_message_date(raw_new_message_date)
         display_name = None
         if len(tds) >= 5:
             raw_display_name = tds[4].get_text(strip=True)
@@ -293,7 +322,6 @@ def scrape_current_page(driver):
             display_name=display_name,
             new_message_date=new_message_date,
         )
-        save_to_db(name, href, friend_registered_at=friend_registered_at, display_name=display_name)
 
         time.sleep(0.2)
 
