@@ -15,7 +15,7 @@ CARD_RADIUS = 16
 
 BASE_QSS = f"""
 QWidget {{
-    background: {NEUTRAL_GRAY_LIGHT};
+    background-color: {NEUTRAL_GRAY_LIGHT};
     color: {NEUTRAL_TEXT};
     font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
     font-size: 14px;
@@ -34,7 +34,7 @@ QWidget {{
 
 /* カード風コンテナ（枠線なし） */
 .QFrame#Card {{
-    background: {PRIMARY_WHITE};
+    background-color: {PRIMARY_WHITE};
     border: none;
     border-radius: {CARD_RADIUS}px;
     padding: 18px;
@@ -45,7 +45,7 @@ QGroupBox {{
     border-radius: 12px;
     margin-top: 8px;
     padding: 14px 12px 10px 12px;
-    background: #FCFDFF;
+    background-color: #FCFDFF;
     font-weight: 600;
 }}
 
@@ -56,14 +56,14 @@ QGroupBox::title {{
 }}
 
 QDateEdit, QTimeEdit, QTextEdit, QPlainTextEdit {{
-    background: {PRIMARY_WHITE};
+    background-color: {PRIMARY_WHITE};
     border: 1px solid {BORDER_GRAY};
     border-radius: 10px;
     padding: 8px;
 }}
 
 QLabel#StatusRunning {{
-    color: #11612B;
+    background-color: #EAF9EF;
     background: #EAF9EF;
     border: 1px solid #B5E2C1;
     border-radius: 8px;
@@ -81,7 +81,7 @@ QLabel#StatusIdle {{
 
 /* すべてのボタンを面色ブルー（プライマリ）に統一 */
 QPushButton {{
-    background: {ACCENT_BLUE};
+    background-color: {ACCENT_BLUE};
     color: white;
     border-radius: 10px;
     padding: 10px 14px;
@@ -89,21 +89,21 @@ QPushButton {{
     font-weight: 600;
 }}
 QPushButton:hover {{
-    background: {ACCENT_BLUE_DARK};
+    background-color: {ACCENT_BLUE_DARK};
 }}
 QPushButton:disabled {{
-    background: #9BB8FF;
+    background-color: #9BB8FF;
 }}
 
 QPushButton#SecondaryButton {{
-    background: #6B7280;
+    background-color: #6B7280;
 }}
 QPushButton#SecondaryButton:hover {{
-    background: #4B5563;
+    background-color: #4B5563;
 }}
 /* ログ表示：背景白＋見やすい文字色 */
 QPlainTextEdit#LogView {{
-    background: {PRIMARY_WHITE};
+    background-color: {PRIMARY_WHITE};
     color: {NEUTRAL_TEXT};
     border-radius: 10px;
     padding: 10px;
