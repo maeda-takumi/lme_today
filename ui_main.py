@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QDateEdit, QTimeEdit, QGroupBox, QGridLayout
 )
 from PySide6.QtCore import Qt, Signal, QObject, Slot, QDate, QTime
+from PySide6.QtWidgets import QSizePolicy
 
 # Selenium
 from selenium import webdriver
@@ -134,7 +135,7 @@ class ContinueDialog(QDialog):
         inst = QTextEdit()
         inst.setReadOnly(True)
         inst.setPlainText(instructions)
-        inst.setMinimumHeight(180)
+        # inst.setMinimumHeight(180)
         v.addWidget(inst)
 
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -398,7 +399,7 @@ class MainWindow(QWidget):
         actions = QVBoxLayout(actions_card)
         actions.setSpacing(14)
         run_group = QGroupBox("データ取得")
-        run_group.setFixedHeight(220)   # ← カード枠の縦幅を固定
+        run_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
         run_grid = QGridLayout(run_group)
 
