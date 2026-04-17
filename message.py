@@ -305,7 +305,7 @@ def restart_driver_with_ui(driver, logger):
             "※［キャンセル］を押すと処理を中断します。"
         )
 
-        logger.open_gate.emit("再ログインが必要です", instructions, proceed_event, cancel_event)
+        logger.open_gate.emit("再ログインが必要です", instructions, proceed_event, cancel_event, "続行")
 
         # どちらかの操作を待つ
         while True:

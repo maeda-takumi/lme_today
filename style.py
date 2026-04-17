@@ -6,14 +6,14 @@ from PySide6.QtGui import QColor
 
 PRIMARY_WHITE = "#FFFFFF"
 NEUTRAL_GRAY_LIGHT = "#F5F6F8"
-NEUTRAL_TEXT = "#1A1F36"   # ログ等で背景白に乗る濃いテキスト色
+NEUTRAL_TEXT = "#1A1F36"
 ACCENT_BLUE = "#2979FF"
 ACCENT_BLUE_DARK = "#1E5ED4"
+BORDER_GRAY = "#E2E7F0"
 
 CARD_RADIUS = 16
 
 BASE_QSS = f"""
-/* 全体 */
 QWidget {{
     background: {NEUTRAL_GRAY_LIGHT};
     color: {NEUTRAL_TEXT};
@@ -24,15 +24,42 @@ QWidget {{
 /* タイトル */
 #TitleLabel {{
     font-weight: 700;
-    font-size: 18px;
+    font-size: 24px;
+}}
+
+#SubTitleLabel {{
+    color: #5A6478;
+    font-size: 13px;
 }}
 
 /* カード風コンテナ（枠線なし） */
 .QFrame#Card {{
     background: {PRIMARY_WHITE};
-    border: none;               /* ← 枠線なし */
+    border: none;
     border-radius: {CARD_RADIUS}px;
-    padding: 20px;
+    padding: 18px;
+}}
+
+QGroupBox {{
+    border: 1px solid {BORDER_GRAY};
+    border-radius: 12px;
+    margin-top: 8px;
+    padding: 14px 12px 10px 12px;
+    background: #FCFDFF;
+    font-weight: 600;
+}}
+
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    left: 8px;
+    padding: 0 6px;
+}}
+
+QDateEdit, QTimeEdit, QTextEdit, QPlainTextEdit {{
+    background: {PRIMARY_WHITE};
+    border: 1px solid {BORDER_GRAY};
+    border-radius: 10px;
+    padding: 8px;
 }}
 
 /* すべてのボタンを面色ブルー（プライマリ）に統一 */
@@ -42,6 +69,7 @@ QPushButton {{
     border-radius: 10px;
     padding: 10px 14px;
     border: none;
+    font-weight: 600;
 }}
 QPushButton:hover {{
     background: {ACCENT_BLUE_DARK};
@@ -57,7 +85,7 @@ QPlainTextEdit#LogView {{
     border-radius: 10px;
     padding: 10px;
     font-family: Consolas, "SFMono-Regular", Menlo, Monaco, monospace;
-    min-height: 160px;
+    min-height: 200px;
 }}
 """
 

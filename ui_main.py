@@ -44,18 +44,6 @@ def create_chrome_options(detach: bool = False) -> Options:
         options.add_experimental_option("detach", True)
     return options
 
-
-def create_chrome_options(detach: bool = False) -> Options:
-    """ログインセッションを永続化する Chrome オプションを作成する。"""
-    os.makedirs(LOGIN_PROFILE_DIR, exist_ok=True)
-    options = Options()
-    options.add_argument(f"--user-data-dir={LOGIN_PROFILE_DIR}")
-    options.add_argument("--profile-directory=Default")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    if detach:
-        options.add_experimental_option("detach", True)
-    return options
-
 def export_tables_to_csv(db_path: str = "lstep_users.db", out_dir: str = "exports") -> dict:
     """
     users と messages を CSV 出力（UTF-8 with BOM）する。
@@ -495,13 +483,18 @@ class MainWindow(QWidget):
     def on_show_error(self, title, text):
         QMessageBox.critical(self, title, text)
 
+    @Slot(str, str, object, object)
     @Slot(str, str, object, object, str)
-    def on_open_gate(self, title: str, instructions: str, proceed_event: object, cancel_event: object, proceed_text: str):
+    def on_open_gate(
+        self,
+        title: str,
+        instructions: str,
+        proceed_event: object,
+        cancel_event: object,
+        proceed_text: str = "続行",
+    ):
         dlg = ContinueDialog(title, instructions, proceed_text, self)
 
-    @Slot(str, str, object, object)
-    def on_open_gate(self, title: str, instructions: str, proceed_event: object, cancel_event: object):
-        dlg = ContinueDialog(title, instructions, self)
         dlg.setStyleSheet(app_stylesheet())
         res = dlg.exec()
         if res == QDialog.Accepted:
