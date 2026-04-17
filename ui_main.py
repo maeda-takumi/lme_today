@@ -363,7 +363,7 @@ def run_login_session_save(logger: UILogger):
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("LSTEP ユーティリティ")
+        self.setWindowTitle("LMessage ユーティリティ")
         self.setMinimumSize(720, 520)
         self.setStyleSheet(app_stylesheet())
         self.logger = UILogger()
@@ -384,7 +384,7 @@ class MainWindow(QWidget):
         root.setSpacing(14)
 
         # タイトル
-        title = QLabel("LSTEP ユーティリティ")
+        title = QLabel("LMessage ユーティリティ")
         title.setObjectName("TitleLabel")
         root.addWidget(title)
 
@@ -449,6 +449,11 @@ class MainWindow(QWidget):
         self.btn_upload = QPushButton("サーバーアップロード実行")
         self.btn_upload.clicked.connect(self.on_click_upload)
         maintenance_row.addWidget(self.btn_upload)
+        self.btn_force_unlock = QPushButton("UIロック解除")
+        self.btn_force_unlock.setObjectName("SecondaryButton")
+        self.btn_force_unlock.setToolTip("処理が固まってUIが無効化された場合に、入力可能な状態へ戻します。")
+        self.btn_force_unlock.clicked.connect(self.on_click_force_unlock)
+        maintenance_row.addWidget(self.btn_force_unlock)
 
         export_group = QGroupBox("出力")
         export_row = QHBoxLayout(export_group)
@@ -521,6 +526,8 @@ class MainWindow(QWidget):
         self.polling_time_input.setEnabled(enabled and not self.polling_active)
         self.btn_polling_start.setEnabled(enabled and not self.polling_active)
         self.btn_polling_stop.setEnabled(self.polling_active)
+        # 緊急解除ボタンは常時有効（ロック復旧用）
+        self.btn_force_unlock.setEnabled(True)
 
     def append_log(self, text: str):
         self.log.appendPlainText(text)
@@ -609,7 +616,7 @@ class MainWindow(QWidget):
         self.polling_status_label.style().unpolish(self.polling_status_label)
         self.polling_status_label.style().polish(self.polling_status_label)
         self.set_controls_enabled(True)
-        
+
     def on_click_tag_scrape(self):
         t = threading.Thread(target=run_tag_scraping, args=(self.logger,), daemon=True)
         t.start()
@@ -617,6 +624,10 @@ class MainWindow(QWidget):
     def on_click_upload(self):
         t = threading.Thread(target=self.run_upload, daemon=True)
         t.start()
+
+    def on_click_force_unlock(self):
+        self.logger.message.emit("⚠️ 手動でUIロックを解除しました。")
+        self.set_controls_enabled(True)
 
     def on_click_login_save(self):
         t = threading.Thread(target=run_login_session_save, args=(self.logger,), daemon=True)
