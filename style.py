@@ -25,11 +25,13 @@ QWidget {{
 #TitleLabel {{
     font-weight: 700;
     font-size: 24px;
+    background: transparent;
 }}
 
 #SubTitleLabel {{
     color: #5A6478;
     font-size: 13px;
+    background: transparent;
 }}
 
 /* カード風コンテナ（枠線なし） */
@@ -69,6 +71,7 @@ QLabel#StatusRunning {{
     border-radius: 8px;
     padding: 6px 10px;
     font-weight: 600;
+    background: transparent;
 }}
 
 QLabel#StatusIdle {{
@@ -77,6 +80,7 @@ QLabel#StatusIdle {{
     border: 1px solid #D5DCE8;
     border-radius: 8px;
     padding: 6px 10px;
+    background: transparent;
 }}
 
 /* ボタン（環境差異で塗りつぶしが無効化されても読めるよう境界線を明示） */

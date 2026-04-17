@@ -365,7 +365,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("LMessage ユーティリティ")
-        self.setMinimumSize(720, 520)
+        self.setMinimumSize(1200, 950)
         self.setStyleSheet(app_stylesheet())
         self.logger = UILogger()
         self.logger.message.connect(self.append_log)
@@ -393,9 +393,14 @@ class MainWindow(QWidget):
         sub_title.setObjectName("SubTitleLabel")
         root.addWidget(sub_title)
 
-        # カード：操作ボタン
+        # 本体エリア（左: 操作、右: ログ）
+        body = QHBoxLayout()
+        body.setSpacing(14)
+
+        # カード：操作ボタン（左）
         actions_card = QFrame()
         actions_card.setObjectName("Card")
+        actions_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         actions = QVBoxLayout(actions_card)
         actions.setSpacing(14)
         run_group = QGroupBox("データ取得")
@@ -426,6 +431,7 @@ class MainWindow(QWidget):
         run_grid.addWidget(self.btn_login_save, 3, 0, 1, 2)
 
         polling_group = QGroupBox("ポーリング")
+        polling_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         polling_grid = QGridLayout(polling_group)
         polling_grid.addWidget(QLabel("実行時刻"), 0, 0)
         self.polling_time_input = QTimeEdit()
@@ -448,6 +454,7 @@ class MainWindow(QWidget):
         polling_grid.addWidget(self.polling_status_label, 2, 0, 1, 2)
 
         maintenance_group = QGroupBox("メンテナンス")
+        maintenance_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         maintenance_row = QHBoxLayout(maintenance_group)
         self.btn_upload = QPushButton("サーバーアップロード実行")
         self.btn_upload.clicked.connect(self.on_click_upload)
@@ -459,6 +466,7 @@ class MainWindow(QWidget):
         maintenance_row.addWidget(self.btn_force_unlock)
 
         export_group = QGroupBox("出力")
+        export_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         export_row = QHBoxLayout(export_group)
         self.btn_analysis = QPushButton("分析（別UI起動）")
         # self.btn_analysis.clicked.connect(self.on_click_analysis)
@@ -473,12 +481,13 @@ class MainWindow(QWidget):
         actions.addWidget(polling_group)
         actions.addWidget(maintenance_group)
         actions.addWidget(export_group)
-        root.addWidget(actions_card)
+        body.addWidget(actions_card, 1)
         apply_card_shadow(actions_card)  # ← カードに影
 
         # カード：ログビュー（白背景＋濃い文字）
         log_card = QFrame()
         log_card.setObjectName("Card")
+        log_card.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         log_layout = QVBoxLayout(log_card)
         log_label = QLabel("ログ")
         log_layout.addWidget(log_label)
@@ -486,10 +495,10 @@ class MainWindow(QWidget):
         self.log.setObjectName("LogView")
         self.log.setReadOnly(True)
         log_layout.addWidget(self.log)
-        root.addWidget(log_card)
+        body.addWidget(log_card, 1)
         apply_card_shadow(log_card)  # ← カードに影
 
-        root.addStretch(1)
+        root.addLayout(body, 1)
     def run_upload(self):
         try:
             self.logger.enable_ui.emit(False)
