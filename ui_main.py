@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QObject, Slot, QDate, QTime
 from PySide6.QtWidgets import QSizePolicy
 
+import time
 # Selenium
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -186,6 +187,7 @@ def run_scraping(logger: UILogger, target_date: str | None = None):
         driver.get("https://step.lme.jp/basic/friendlist")
 
         logger.message.emit("🟡 一覧を取得中…")
+        time.sleep(8)
         scrape_user_list(driver)
 
         if target_date:
@@ -279,6 +281,7 @@ def run_tag_scraping(logger: UILogger):
                 return  # finally へ
 
         logger.message.emit("🟡 一覧を取得中…")
+        time.sleep(8)
         scrape_user_list(driver)
 
         logger.message.emit("🟡 タグ取得を開始します…")

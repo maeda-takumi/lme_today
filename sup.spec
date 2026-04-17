@@ -11,7 +11,6 @@ a = Analysis(
     binaries=[],
     datas=[('icons/icon.ico', 'icons'), ('icons/icon.png', 'icons')],
     hiddenimports=selenium_hiddenimports,
-    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
