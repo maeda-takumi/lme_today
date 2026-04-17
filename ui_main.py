@@ -182,28 +182,8 @@ def run_scraping(logger: UILogger, target_date: str | None = None):
         logger.message.emit("🟡 ブラウザを起動します…")
         options = create_chrome_options()
         driver = webdriver.Chrome(options=options)
-        driver.get("https://step.lme.jp/")
-        driver.get("https://step.lme.jp/")
-
-
-        # ---- UIゲート（OKで続行 / キャンセルで中断）----
-        proceed_event = threading.Event()
-        cancel_event = threading.Event()
-        instructions = (
-            "1) ブラウザでLステップにログインしてください。\n"
-            "2) 対象の『友達リスト』まで手動で移動してください。\n"
-            "3) 画面が開けたら、このポップアップの［続行］を押してください。\n\n"
-            "※［キャンセル］を押すと処理を中断します。"
-        )
-        logger.open_gate.emit("ログイン＆移動のお願い", instructions, proceed_event, cancel_event, "続行")
-
-        # どちらかが押されるまで待つ（ポーリングで両方監視）
-        while True:
-            if proceed_event.wait(timeout=0.1):
-                break
-            if cancel_event.is_set():
-                logger.message.emit("🛑 ユーザー操作によりキャンセルされました。")
-                return  # finally へ
+        logger.message.emit("🟡 自動ログインセッションで友だちリストへ移動します…")
+        driver.get("https://step.lme.jp/basic/friendlist")
 
         logger.message.emit("🟡 一覧を取得中…")
         scrape_user_list(driver)
