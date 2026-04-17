@@ -442,6 +442,33 @@ def normalize_time_sent(current_date: str, time_sent_raw: str):
     # current_date が無いなら詰み（年も日付も確定できない）
     return None
 
+def normalize_new_message_date(raw: str | None) -> str | None:
+    """
+    users.new_message_date（一覧2列目の表示値）を YYYY-MM-DD に寄せる。
+    """
+    if not raw:
+        return None
+    text = raw.strip()
+    if not text:
+        return None
+
+    # 2026-04-17 / 2026/04/17 / 2026.04.17
+    m = re.search(r"(\d{4})[./-](\d{1,2})[./-](\d{1,2})", text)
+    if m:
+        y = int(m.group(1))
+        mo = int(m.group(2))
+        d = int(m.group(3))
+        return f"{y:04d}-{mo:02d}-{d:02d}"
+
+    # 2026年4月17日
+    m = re.search(r"(\d{4})年(\d{1,2})月(\d{1,2})日", text)
+    if m:
+        y = int(m.group(1))
+        mo = int(m.group(2))
+        d = int(m.group(3))
+        return f"{y:04d}-{mo:02d}-{d:02d}"
+
+    return None
 # 各ユーザーのチャット履歴を取得
 def scrape_messages(driver, logger, base_url="https://step.lme.jp", target_date: str | None = None):
 
@@ -457,7 +484,7 @@ def scrape_messages(driver, logger, base_url="https://step.lme.jp", target_date:
 
     conn = sqlite3.connect("lstep_users.db")
     cursor = conn.cursor()
-    cursor.execute('SELECT id, href FROM users ORDER BY id ASC')
+    cursor.execute('SELECT id, href, new_message_date FROM users ORDER BY id ASC')
     users = cursor.fetchall()
     conn.close()
 
@@ -466,10 +493,15 @@ def scrape_messages(driver, logger, base_url="https://step.lme.jp", target_date:
         logger.message.emit(f"📅 対象日のみ取得します: {target_date} (JST)")
     else:
         logger.message.emit("📅 対象日指定なし: 全期間を取得します")
-    for user_id, href in users:
+    for user_id, href, new_message_date in users:
         if user_id < resume_from:
             continue
 
+        if target_date:
+            normalized_new_message_date = normalize_new_message_date(new_message_date)
+            if normalized_new_message_date != target_date:
+                continue
+            
         print(f"🟡 ユーザーID {user_id} のチャットを取得中…")
 
         # ================================

@@ -44,6 +44,10 @@ def ensure_users_columns(conn):
         cur.execute("ALTER TABLE users ADD COLUMN friend_value TEXT")
         conn.commit()
 
+    if "new_message_date" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN new_message_date TEXT")
+        conn.commit()
+
 def initialize_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -56,7 +60,8 @@ def initialize_db():
             friend_registered_at TEXT,
             tags TEXT,
             display_name TEXT,
-            friend_value TEXT
+            friend_value TEXT,
+            new_message_date TEXT
         )
     """)
     cursor.execute("""
@@ -80,7 +85,14 @@ def clear_tables():
     conn.commit()
     conn.close()
 
-def save_to_db(name, href, friend_registered_at=None, support=None, display_name=None):
+def save_to_db(
+    name,
+    href,
+    friend_registered_at=None,
+    support=None,
+    display_name=None,
+    new_message_date=None,
+):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -89,7 +101,7 @@ def save_to_db(name, href, friend_registered_at=None, support=None, display_name
     if href:
         cursor.execute(
             """
-            SELECT id, line_name, friend_registered_at, support, display_name
+            SELECT id, line_name, friend_registered_at, support, display_name, new_message_date
             FROM users
             WHERE href = ?
             ORDER BY id ASC
@@ -105,6 +117,7 @@ def save_to_db(name, href, friend_registered_at=None, support=None, display_name
                 "friend_registered_at": row[2],
                 "support": row[3],
                 "display_name": row[4],
+                "new_message_date": row[5],
             }
 
     if existing_id:
@@ -113,14 +126,15 @@ def save_to_db(name, href, friend_registered_at=None, support=None, display_name
             or existing_values["friend_registered_at"] != friend_registered_at
             or existing_values["support"] != support
             or existing_values["display_name"] != display_name
+            or existing_values["new_message_date"] != new_message_date
         )
         cursor.execute(
             """
             UPDATE users
-            SET line_name = ?, href = ?, friend_registered_at = ?, support = ?, display_name = ?
+            SET line_name = ?, href = ?, friend_registered_at = ?, support = ?, display_name = ?, new_message_date = ?
             WHERE id = ?
             """,
-            (name, href, friend_registered_at, support, display_name, existing_id)
+            (name, href, friend_registered_at, support, display_name, new_message_date, existing_id)
         )
         if has_change:
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -134,10 +148,10 @@ def save_to_db(name, href, friend_registered_at=None, support=None, display_name
     else:
         cursor.execute(
             """
-            INSERT INTO users (line_name, href, friend_registered_at, support, display_name)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (line_name, href, friend_registered_at, support, display_name, new_message_date)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (name, href, friend_registered_at, support, display_name)
+            (name, href, friend_registered_at, support, display_name, new_message_date)
         )
 
     conn.commit()
@@ -254,6 +268,11 @@ def scrape_current_page(driver):
         # 一覧の固定列から display_name を取得
         # 例画像ベース: 5列目(td index=4) が display_name
         tds = row.select("td")
+        new_message_date = None
+        if len(tds) >= 2:
+            raw_new_message_date = tds[1].get_text(strip=True)
+            if raw_new_message_date:
+                new_message_date = raw_new_message_date
         display_name = None
         if len(tds) >= 5:
             raw_display_name = tds[4].get_text(strip=True)
@@ -263,7 +282,17 @@ def scrape_current_page(driver):
                 # "-" はそのまま保存
                 display_name = raw_display_name
 
-        print(f"{name}: {href} / friend_registered_at={friend_registered_at} / display_name={display_name}")
+        print(
+            f"{name}: {href} / friend_registered_at={friend_registered_at} "
+            f"/ new_message_date={new_message_date} / display_name={display_name}"
+        )
+        save_to_db(
+            name,
+            href,
+            friend_registered_at=friend_registered_at,
+            display_name=display_name,
+            new_message_date=new_message_date,
+        )
         save_to_db(name, href, friend_registered_at=friend_registered_at, display_name=display_name)
 
         time.sleep(0.2)
